@@ -1,0 +1,23 @@
+[Unit]
+Description=PullKnock Agent
+After=network-online.target firewalld.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pullknock-agent --config /etc/pullknock/agent.yaml
+Restart=always
+RestartSec=5
+User=root
+Group=root
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/pullknock /var/log/pullknock
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

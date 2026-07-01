@@ -1,0 +1,24 @@
+defaults:
+  principal: "jonhy"
+  signature_namespace: "pullknock-v1"
+  private_key: "~/.ssh/pullknock_ed25519_sk"
+  command_ttl_seconds: 60
+  requested_timeout_seconds: 60
+
+publishers:
+  local:
+    type: "file"
+    path: "/tmp/pullknock-command.json"
+
+  x162-http:
+    type: "http_put"
+    url: "https://example.com/hidden/path/pullknock-command.json"
+    timeout_seconds: 10
+    headers:
+      Authorization: "Bearer ${PULLKNOCK_UPLOAD_TOKEN}"
+
+targets:
+  x162:
+    target: "x162-43-32-23"
+    grant_id: "x162-ssh"
+    publisher: "local"

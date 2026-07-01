@@ -1,0 +1,57 @@
+server:
+  id: "x162-43-32-23"
+  poll_interval_seconds: 5
+  poll_jitter_seconds: 2
+  control_url: "/tmp/pullknock-command.json"
+  http_timeout_seconds: 5
+
+security:
+  allowed_signers_file: "/etc/pullknock/allowed_signers"
+  signature_namespace: "pullknock-v1"
+  nonce_db: "/var/lib/pullknock/nonces.sqlite3"
+  max_clock_skew_seconds: 30
+  max_command_ttl_seconds: 120
+  nonce_retention_seconds: 604800
+
+firewall:
+  backend: "firewalld"
+  firewall_cmd: "/usr/bin/firewall-cmd"
+  default_zone: "public"
+
+users:
+  jonhy:
+    enabled: true
+    display_name: "Jonhy"
+    allowed_grants:
+      - "x162-ssh"
+    max_timeout_seconds: 60
+    not_before: "2026-07-01T00:00:00+00:00"
+    expires_at: "2027-07-01T00:00:00+00:00"
+    allow_source_cidrs:
+      - "0.0.0.0/0"
+      - "::/0"
+
+  ops-temp:
+    enabled: true
+    display_name: "Temporary ops user"
+    allowed_grants:
+      - "x162-ssh"
+    max_timeout_seconds: 30
+    expires_at: "2026-08-01T00:00:00+00:00"
+    allow_source_cidrs:
+      - "203.0.113.0/24"
+
+grants:
+  x162-ssh:
+    description: "Temporary SSH access for x162"
+    allowed_principals:
+      - "jonhy"
+      - "ops-temp"
+    ports:
+      - protocol: "tcp"
+        port: 22
+    max_timeout_seconds: 60
+    zone: "public"
+    allow_source_cidrs:
+      - "0.0.0.0/0"
+      - "::/0"

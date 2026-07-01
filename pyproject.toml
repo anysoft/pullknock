@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pullknock"
+version = "0.1.0"
+description = "Reverse-pull dynamic firewall authorization using OpenSSH SSHSIG."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "PullKnock contributors" }
+]
+dependencies = [
+  "click>=8.1",
+  "PyYAML>=6.0",
+  "requests>=2.31"
+]
+
+[project.scripts]
+pullknock = "pullknock.cli:main"
+pullknock-agent = "pullknock.agent:main"
+
+[tool.setuptools.packages.find]
+include = ["pullknock*"]
