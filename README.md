@@ -989,3 +989,11 @@ python3 scripts/security_scan.py
 - 禁用用户用 `users.<principal>.enabled: false`。
 - 控制 URL 拉取失败不会影响已经存在的临时防火墙放行。
 - Publisher 服务只负责投递，不负责授权；不要把它当成可信控制面。
+
+
+# Security automation
+- CodeQL 负责代码扫描。
+- Security workflow 负责 pip-audit 和 SBOM。
+- Bandit workflow 可选上传 SARIF 到 Code scanning。
+- SECURITY.md 负责漏洞报告流程。
+

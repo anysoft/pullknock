@@ -1,0 +1,41 @@
+name: Bandit
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  schedule:
+    - cron: "12 4 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  bandit:
+    name: Bandit SARIF
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Bandit
+        run: python -m pip install "bandit[toml]>=1.7.10"
+
+      - name: Run Bandit
+        run: |
+          mkdir -p reports
+          bandit -r pullknock -f sarif -o reports/bandit.sarif || true
+
+      - name: Upload Bandit SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: reports/bandit.sarif
+
