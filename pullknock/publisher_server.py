@@ -254,7 +254,13 @@ def _queue_root(config: PublisherServiceConfig) -> Path:
 def _queue_item_file(config: PublisherServiceConfig, target: str, command_id: str) -> Path:
     _validate_queue_id(target, "target")
     _validate_queue_id(command_id, "command_id")
-    return _queue_root(config) / target / f"{command_id}.json"
+    queue_root = _queue_root(config).resolve()
+    candidate = (queue_root / target / f"{command_id}.json").resolve()
+    try:
+        candidate.relative_to(queue_root)
+    except ValueError as exc:
+        raise ProtocolError("invalid_queue_path") from exc
+    return candidate
 
 
 def _queue_index(config: PublisherServiceConfig, target: str) -> dict[str, Any]:
