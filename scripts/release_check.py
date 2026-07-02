@@ -6,8 +6,9 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
+
+from _toml_compat import tomllib
 
 
 def main() -> int:

@@ -7,8 +7,9 @@ import argparse
 import subprocess
 import sys
 import tempfile
-import tomllib
 from pathlib import Path
+
+from _toml_compat import tomllib
 
 
 CONSOLE_SCRIPTS = (

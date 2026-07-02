@@ -6,8 +6,9 @@ from __future__ import annotations
 import os
 import re
 import sys
-import tomllib
 from pathlib import Path
+
+from _toml_compat import tomllib
 
 REQUIRED_SECTIONS = ("Added", "Changed", "Fixed", "Security", "Migration")
 TEMPLATE = """Expected CHANGELOG.md format:

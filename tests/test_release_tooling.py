@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import subprocess
@@ -84,6 +85,20 @@ class ReleaseToolingTest(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("systemd hardening OK", completed.stdout)
+
+    def test_release_scripts_use_toml_compat_import(self):
+        offenders = []
+        for path in sorted((ROOT / "scripts").glob("*.py")):
+            if path.name == "_toml_compat.py":
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import) and any(alias.name == "tomllib" for alias in node.names):
+                    offenders.append(str(path.relative_to(ROOT)))
+                if isinstance(node, ast.ImportFrom) and node.module == "tomllib":
+                    offenders.append(str(path.relative_to(ROOT)))
+
+        self.assertEqual(offenders, [])
 
 
 if __name__ == "__main__":

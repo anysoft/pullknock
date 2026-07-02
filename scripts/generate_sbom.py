@@ -10,10 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+from _toml_compat import tomllib
 
 
 def main() -> int:
