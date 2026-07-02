@@ -13,7 +13,11 @@ from pathlib import Path
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tag", default=None, help="Release tag, for example v0.1.0. Defaults to GITHUB_REF_NAME.")
+    parser.add_argument(
+        "--tag",
+        default=None,
+        help="Release tag, for example v0.1.0. Defaults to GITHUB_REF_NAME only when GITHUB_REF_TYPE=tag.",
+    )
     parser.add_argument("--require-tag", action="store_true", help="Fail when no tag is available.")
     args = parser.parse_args()
 
@@ -32,7 +36,7 @@ def main() -> int:
         print(f"CHANGELOG.md must contain section: ## v{version}", file=sys.stderr)
         return 1
 
-    tag = args.tag or os.environ.get("GITHUB_REF_NAME") or ""
+    tag = resolve_release_tag(args.tag)
     if tag:
         if not tag.startswith("v"):
             print(f"release tag must start with v, got {tag}", file=sys.stderr)
@@ -44,9 +48,17 @@ def main() -> int:
         print("release tag is required", file=sys.stderr)
         return 1
 
-    tag_label = tag or f"v{version} (local)"
+    tag_label = tag or f"v{version} (tag check skipped)"
     print(f"release tag OK: {tag_label}")
     return 0
+
+
+def resolve_release_tag(explicit_tag: str | None) -> str:
+    if explicit_tag:
+        return explicit_tag
+    if os.environ.get("GITHUB_REF_TYPE") == "tag":
+        return os.environ.get("GITHUB_REF_NAME") or ""
+    return ""
 
 
 def load_pyproject_version(root: Path) -> str:

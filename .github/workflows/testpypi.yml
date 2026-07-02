@@ -1,7 +1,15 @@
 name: Publish to TestPyPI
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish to TestPyPI, for example v0.1.0"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -27,7 +37,9 @@ jobs:
         run: python -m pip install -e ".[release]"
 
       - name: Require version tag
-        run: python scripts/check_release_tag.py --require-tag
+        run: python scripts/check_release_tag.py --tag "$PULLKNOCK_RELEASE_TAG" --require-tag
+        env:
+          PULLKNOCK_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
       - name: Check release notes
         run: python scripts/check_release_notes.py

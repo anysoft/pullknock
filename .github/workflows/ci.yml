@@ -32,11 +32,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install package and release tools
-        run: python -m pip install -e ".[release]"
+      - name: Install package
+        run: python -m pip install -e .
 
-      - name: Run release checks
-        run: python scripts/release_check.py
+      - name: Compile Python files
+        run: python -m compileall pullknock tests scripts
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests
+
+      - name: Run E2E file-mode dry-run
+        run: python scripts/e2e_file_mode.py
+
+      - name: Generate config schema docs
+        run: python scripts/generate_config_schema_docs.py
 
       - name: Verify generated docs are committed
         run: git diff --exit-code docs/10-config-schema.md
