@@ -14,22 +14,32 @@ class CommandTest(unittest.TestCase):
 
         self.assertIn("Agent config OK.", completed.stdout)
 
-    def test_pr_title_check_accepts_conventional_title(self):
-        completed = subprocess.run(
-            [sys.executable, "scripts/check_pr_title.py", "feat(agent): add nftables backend"],
-            check=True,
+    def run_pr_title_check(self, title):
+        return subprocess.run(
+            [sys.executable, "scripts/check_pr_title.py", title],
             capture_output=True,
             text=True,
         )
 
-        self.assertIn("PR title OK", completed.stdout)
+    def test_pr_title_check_accepts_allowed_titles(self):
+        cases = [
+            ("feat(agent): add nftables backend", "PR title OK"),
+            ("fix(protocol): reject malformed source IP", "PR title OK"),
+            ("docs: update deployment guide", "PR title OK"),
+            (
+                "Potential fix for code scanning alert no. 7: Uncontrolled data used in path expression",
+                "Accepted GitHub code scanning autofix PR title.",
+            ),
+        ]
+        for title, message in cases:
+            with self.subTest(title=title):
+                completed = self.run_pr_title_check(title)
+
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertIn(message, completed.stdout)
 
     def test_pr_title_check_rejects_plain_title(self):
-        completed = subprocess.run(
-            [sys.executable, "scripts/check_pr_title.py", "add stuff"],
-            capture_output=True,
-            text=True,
-        )
+        completed = self.run_pr_title_check("random invalid title")
 
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("Invalid PR title", completed.stderr)

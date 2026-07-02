@@ -26,6 +26,7 @@ ALLOWED_TYPES = (
 TITLE_RE = re.compile(
     r"^(?P<type>[a-z]+)(?:\([a-z0-9][a-z0-9._/-]*\))?(?P<breaking>!)?: (?P<subject>.+)$"
 )
+CODE_SCANNING_AUTOFIX_RE = re.compile(r"^Potential fix for code scanning alert no\. [0-9]+: .+$")
 
 
 def main() -> int:
@@ -40,6 +41,10 @@ def check_title(title: str) -> int:
     if len(title) > 120:
         print("PR title is too long; keep it at 120 characters or less.", file=sys.stderr)
         return 1
+
+    if CODE_SCANNING_AUTOFIX_RE.match(title):
+        print("Accepted GitHub code scanning autofix PR title.")
+        return 0
 
     match = TITLE_RE.match(title)
     if not match:
