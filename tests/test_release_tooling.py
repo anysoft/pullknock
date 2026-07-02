@@ -5,10 +5,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import importlib.util
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
 
 
 class ReleaseToolingTest(unittest.TestCase):
@@ -88,7 +90,7 @@ class ReleaseToolingTest(unittest.TestCase):
 
     def test_release_scripts_use_toml_compat_import(self):
         offenders = []
-        for path in sorted((ROOT / "scripts").glob("*.py")):
+        for path in sorted(SCRIPTS.glob("*.py")):
             if path.name == "_toml_compat.py":
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -99,6 +101,31 @@ class ReleaseToolingTest(unittest.TestCase):
                     offenders.append(str(path.relative_to(ROOT)))
 
         self.assertEqual(offenders, [])
+
+    def test_toml_compat_declares_python310_fallback(self):
+        source = (SCRIPTS / "_toml_compat.py").read_text(encoding="utf-8")
+
+        self.assertIn("except ModuleNotFoundError", source)
+        self.assertIn("import tomli as tomllib", source)
+
+    def test_security_scan_loads_only_runtime_dependencies(self):
+        sys.path.insert(0, str(SCRIPTS))
+        try:
+            spec = importlib.util.spec_from_file_location("security_scan", SCRIPTS / "security_scan.py")
+            self.assertIsNotNone(spec)
+            self.assertIsNotNone(spec.loader)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        finally:
+            try:
+                sys.path.remove(str(SCRIPTS))
+            except ValueError:
+                pass
+
+        dependencies = module.load_runtime_dependencies(ROOT / "pyproject.toml")
+
+        self.assertEqual(dependencies, ["click>=8.1", "PyYAML>=6.0", "requests>=2.31"])
+        self.assertNotIn("pip-audit>=2.7", dependencies)
 
 
 if __name__ == "__main__":
