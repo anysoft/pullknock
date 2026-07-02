@@ -60,7 +60,11 @@ def make_handler(config: PublisherServiceConfig):
                     self._unauthorized()
                     return
                 target, command_id = queue_item
-                path = _queue_item_file(config, target, command_id)
+                try:
+                    path = _queue_item_file(config, target, command_id)
+                except ProtocolError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid_queue_path", "message": str(exc)})
+                    return
                 try:
                     body = path.read_bytes()
                 except FileNotFoundError:
@@ -159,7 +163,11 @@ def make_handler(config: PublisherServiceConfig):
                     _atomic_write(Path(config.storage.envelope_file), stored_bytes)
                 else:
                     target, command_id = queue_item
-                    _atomic_write(_queue_item_file(config, target, command_id), stored_bytes)
+                    queue_path = _queue_item_file(config, target, command_id)
+                    _atomic_write(queue_path, stored_bytes)
+            except ProtocolError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid_queue_path", "message": str(exc)})
+                return
             except OSError as exc:
                 self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "write_failed", "message": str(exc)})
                 return
@@ -254,7 +262,13 @@ def _queue_root(config: PublisherServiceConfig) -> Path:
 def _queue_item_file(config: PublisherServiceConfig, target: str, command_id: str) -> Path:
     _validate_queue_id(target, "target")
     _validate_queue_id(command_id, "command_id")
-    return _queue_root(config) / target / f"{command_id}.json"
+    root = _queue_root(config).resolve()
+    candidate = (root / target / f"{command_id}.json").resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise ProtocolError("invalid_queue_path") from exc
+    return candidate
 
 
 def _queue_index(config: PublisherServiceConfig, target: str) -> dict[str, Any]:
