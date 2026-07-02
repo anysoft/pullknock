@@ -325,7 +325,7 @@ def _atomic_write(path: Path, body: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_name = None
     try:
-        with tempfile.NamedTemporaryFile("wb", delete=False, dir=str(path.parent), prefix=f".{path.name}.") as temp_file:
+        with tempfile.NamedTemporaryFile("wb", delete=False, dir=str(path.parent), prefix=".pullknock-tmp.") as temp_file:
             temp_name = temp_file.name
             temp_file.write(body)
         os.replace(temp_name, path)
