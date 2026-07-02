@@ -12,3 +12,4 @@ build/
 *.sqlite3
 *.log
 pullknock-command.json
+reports/

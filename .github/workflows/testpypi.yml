@@ -22,10 +22,28 @@ jobs:
     environment: testpypi
 
     steps:
-      - name: Checkout
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          case "$tag" in
+            v*) ;;
+            *) echo "Release tag must start with v, got $tag" >&2; exit 1 ;;
+          esac
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ steps.release.outputs.tag }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -37,27 +55,56 @@ jobs:
         run: python -m pip install -e ".[release]"
 
       - name: Require version tag
-        run: python scripts/check_release_tag.py --tag "$PULLKNOCK_RELEASE_TAG" --require-tag
-        env:
-          PULLKNOCK_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: python scripts/check_release_tag.py --tag "${{ steps.release.outputs.tag }}" --require-tag
 
       - name: Check release notes
+        env:
+          GITHUB_REF_NAME: ${{ steps.release.outputs.tag }}
+          GITHUB_REF_TYPE: tag
         run: python scripts/check_release_notes.py
 
-      - name: Run release checks
-        run: python scripts/release_check.py
+      - name: Compile
+        run: python -m compileall pullknock tests scripts
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests
+
+      - name: E2E file mode
+        run: python scripts/e2e_file_mode.py
+
+      - name: Clean build outputs
+        run: rm -rf dist build reports *.egg-info
 
       - name: Build distributions
         run: python -m build
 
       - name: Check distributions
-        run: python -m twine check dist/*
+        run: python -m twine check dist/*.whl dist/*.tar.gz
+
+      - name: Ensure dist contains only distributions
+        shell: bash
+        run: |
+          unexpected="$(find dist -maxdepth 1 -type f ! -name '*.whl' ! -name '*.tar.gz')"
+          if [ -n "$unexpected" ]; then
+            echo "dist/ contains non-distribution files:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
 
       - name: Verify wheel install
         run: python scripts/verify_wheel_install.py
 
       - name: Generate SBOM
-        run: python scripts/generate_sbom.py
+        run: |
+          mkdir -p reports
+          python scripts/generate_sbom.py --output "reports/pullknock-${{ steps.release.outputs.version }}-sbom.cdx.json"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: pullknock-${{ steps.release.outputs.version }}-testpypi-sbom
+          path: reports/*.json
+          if-no-files-found: error
 
       - name: Publish package distributions to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1

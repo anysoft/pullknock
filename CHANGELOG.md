@@ -1,6 +1,8 @@
 # Changelog
 
 所有重要变更都会记录在这里。版本遵循 `docs/11-release.md` 中的版本策略。
+## v0.1.1
+- workflow
 
 ## v0.1.0
 

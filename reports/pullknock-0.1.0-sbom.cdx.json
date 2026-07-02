@@ -1,0 +1,45 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "pkg:pypi/click",
+      "name": "click",
+      "purl": "pkg:pypi/click",
+      "type": "library",
+      "version": ">=8.1"
+    },
+    {
+      "bom-ref": "pkg:pypi/pyyaml",
+      "name": "PyYAML",
+      "purl": "pkg:pypi/pyyaml",
+      "type": "library",
+      "version": ">=6.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/requests",
+      "name": "requests",
+      "purl": "pkg:pypi/requests",
+      "type": "library",
+      "version": ">=2.31"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "bom-ref": "pkg:pypi/pullknock@0.1.0",
+      "name": "pullknock",
+      "purl": "pkg:pypi/pullknock@0.1.0",
+      "type": "application",
+      "version": "0.1.0"
+    },
+    "timestamp": "2026-07-02T16:10:53+00:00",
+    "tools": [
+      {
+        "name": "scripts/generate_sbom.py",
+        "vendor": "PullKnock"
+      }
+    ]
+  },
+  "serialNumber": "urn:uuid:648a68a2-a9a7-4afd-a0a3-f3e645467133",
+  "specVersion": "1.5",
+  "version": 1
+}
