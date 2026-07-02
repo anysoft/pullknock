@@ -1,0 +1,114 @@
+# defaults：多服务器配置生成时的共享默认值。
+defaults:
+  # cli：生成 cli-config.yaml 时使用的默认参数。
+  cli:
+    # principal：默认客户端 principal。
+    principal: "jonhy"
+    # signature_namespace：SSHSIG namespace。
+    signature_namespace: "pullknock-v1"
+    # private_key：默认签名私钥。
+    private_key: "~/.ssh/pullknock_ed25519_sk"
+    # command_ttl_seconds：signed command 有效期。
+    command_ttl_seconds: 60
+    # requested_timeout_seconds：默认请求开放秒数。
+    requested_timeout_seconds: 60
+  # agent：生成每台 agent.yaml 时使用的默认配置。
+  agent:
+    # security：共享安全配置。
+    security:
+      # signature_namespace：agent 验签 namespace。
+      signature_namespace: "pullknock-v1"
+      # nonce_db：默认 nonce DB 路径。
+      nonce_db: "/var/lib/pullknock/nonces.sqlite3"
+    # firewall：共享防火墙配置。
+    firewall:
+      # backend：防火墙后端。
+      backend: "firewalld"
+      # firewall_cmd：firewall-cmd 路径。
+      firewall_cmd: "/usr/bin/firewall-cmd"
+      # default_zone：默认 zone。
+      default_zone: "public"
+
+# publishers：共享 CLI publisher 配置。
+publishers:
+  # s3：S3 兼容对象存储 publisher。
+  s3:
+    # type：publisher 类型。
+    type: "s3_put"
+    # endpoint_url：S3 endpoint。
+    endpoint_url: "https://s3.example.com"
+    # region：SigV4 region。
+    region: "us-east-1"
+    # bucket：bucket 名称。
+    bucket: "pullknock"
+    # key：默认对象 key；生成器不会改写 publisher，本字段可作为示例。
+    key: "commands/x162.json"
+    # access_key_id：访问密钥 ID。
+    access_key_id: "${PULLKNOCK_S3_ACCESS_KEY_ID}"
+    # secret_access_key：访问密钥 secret。
+    secret_access_key: "${PULLKNOCK_S3_SECRET_ACCESS_KEY}"
+
+# groups：共享用户组策略。
+groups:
+  # ops：运维组。
+  ops:
+    # allowed_grants：组成员允许使用的 grant。
+    allowed_grants:
+      - "ssh"
+    # max_timeout_seconds：组级最大开放秒数。
+    max_timeout_seconds: 45
+    # allow_source_cidrs：组级来源 CIDR。
+    allow_source_cidrs:
+      - "0.0.0.0/0"
+
+# users：共享用户表。
+users:
+  # jonhy：principal。
+  jonhy:
+    # groups：用户所属组。
+    groups:
+      - "ops"
+    # keys：用户公钥和 key 级策略。
+    keys:
+      - id: "jonhy-yubikey-2026"
+        public_key: "sk-ssh-ed25519@openssh.com AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyReplaceMe jonhy-pullknock"
+        enabled: true
+        comment: "Jonhy YubiKey"
+
+# grant_templates：可复用 grant 模板。
+grant_templates:
+  # ssh：SSH grant 模板。
+  ssh:
+    # allowed_groups：允许使用该 grant 的组。
+    allowed_groups:
+      - "ops"
+    # ports：开放端口。
+    ports:
+      - protocol: "tcp"
+        port: 22
+    # max_timeout_seconds：grant 最大开放秒数。
+    max_timeout_seconds: 60
+    # allow_source_cidrs：grant 来源 CIDR。
+    allow_source_cidrs:
+      - "0.0.0.0/0"
+
+# servers：要生成配置的服务器列表。
+servers:
+  # x162：服务器别名，会生成 agents/x162.agent.yaml。
+  x162:
+    # publisher：生成 CLI target 时引用的 publisher 名称。
+    publisher: "s3"
+    # server：写入 agent.yaml 的 server 段。
+    server:
+      # id：服务器 ID。
+      id: "x162-43-32-23"
+      # control_url：agent 拉取 envelope 的固定 URL。
+      control_url: "https://s3.example.com/pullknock/commands/x162.json"
+    # grants：该服务器启用的 grant。
+    grants:
+      # ssh：生成 CLI target x162-ssh。
+      ssh:
+        # template：引用 grant_templates.ssh。
+        template: "ssh"
+        # description：本服务器 grant 描述。
+        description: "x162 SSH access"

@@ -1,0 +1,50 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+        args:
+          - --unsafe
+      - id: debug-statements
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args:
+          - --fix=lf
+
+  - repo: local
+    hooks:
+      - id: pullknock-release-notes
+        name: Check release notes
+        entry: python scripts/check_release_notes.py
+        language: system
+        pass_filenames: false
+        files: ^(CHANGELOG\.md|pyproject\.toml|pullknock/__init__\.py|scripts/check_release_notes\.py)$
+
+      - id: pullknock-pr-title-script
+        name: Check PR title script example
+        entry: 'python scripts/check_pr_title.py "feat(agent): add config reload"'
+        language: system
+        pass_filenames: false
+        files: ^(scripts/check_pr_title\.py|\.github/workflows/pr-title\.yml)$
+
+      - id: pullknock-config-schema
+        name: Generate config schema docs
+        entry: python scripts/generate_config_schema_docs.py
+        language: system
+        pass_filenames: false
+        files: ^(scripts/generate_config_schema_docs\.py|docs/10-config-schema\.md)$
+
+      - id: pullknock-compile
+        name: Compile Python files
+        entry: python -m compileall pullknock tests scripts
+        language: system
+        pass_filenames: false
+        types:
+          - python

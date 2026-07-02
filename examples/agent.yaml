@@ -1,57 +1,203 @@
+# server：agent 自身和控制通道配置。
 server:
+  # id：这台服务器的唯一 ID；CLI payload 里的 target 必须等于这个值。
   id: "x162-43-32-23"
+  # poll_interval_seconds：agent 正常轮询控制 URL 的基础间隔秒数。
   poll_interval_seconds: 5
+  # poll_jitter_seconds：每次轮询额外随机等待秒数，避免多 agent 同步打点。
   poll_jitter_seconds: 2
+  # control_url：agent 拉取 envelope 的固定位置；保留给单 URL 部署，支持环境变量展开、HTTPS、FTP/FTPS、file:// 或本地路径。
   control_url: "/tmp/pullknock-command.json"
+  # control_urls：可选；多 control URL fallback 列表。配置后 agent 会按顺序尝试，直到找到非空 envelope。
+  # control_urls:
+  #   # 第一个 URL：优先使用自建 publisher。
+  #   - "https://publisher.example.com/pullknock-command.json"
+  #   # 第二个 URL：publisher 不可用时回退到 WebDAV/对象存储公开读地址。
+  #   - "https://storage.example.com/pullknock-command.json"
+  #   # 第三个 URL：最后回退到本地文件，适合演练或应急。
+  #   - "/tmp/pullknock-command.json"
+  # http_timeout_seconds：control_url 为 HTTP/HTTPS 时的 GET 超时时间。
   http_timeout_seconds: 5
+  # control_headers：可选；agent 拉取 HTTP/HTTPS control_url 时附加 header。
+  # control_headers:
+  #   # Authorization：读取受保护 publisher 时使用的 bearer token。
+  #   Authorization: "Bearer ${PULLKNOCK_READ_TOKEN}"
 
+# audit：agent 审计日志配置。
+audit:
+  # log_file：可选；JSON Lines 审计日志落盘路径。不配置时默认输出到 stderr/journald。
+  log_file: "/var/log/pullknock/audit.log"
+
+# security：协议安全和防重放配置。
 security:
-  allowed_signers_file: "/etc/pullknock/allowed_signers"
+  # signature_namespace：OpenSSH SSHSIG 验签 namespace；必须和 CLI 配置一致。
   signature_namespace: "pullknock-v1"
+  # nonce_db：SQLite 防重放数据库路径；只保存已处理 command_id，不保存用户或私钥。
   nonce_db: "/var/lib/pullknock/nonces.sqlite3"
+  # max_clock_skew_seconds：允许 CLI 和服务器之间的最大时钟偏差。
   max_clock_skew_seconds: 30
+  # max_command_ttl_seconds：允许 signed command 自身存在的最长时间，防止超长 expires_at。
   max_command_ttl_seconds: 120
+  # nonce_retention_seconds：已处理 command_id 的保留时间；默认 7 天。
   nonce_retention_seconds: 604800
+  # age：可选 envelope 解密配置；启用后 agent 同时支持 envelope v1/v2 age 加密格式。
+  # age:
+  #   # enabled：是否启用 age 解密；false 等价于不配置 age。
+  #   enabled: true
+  #   # age_cmd：age 可执行文件路径或命令名。
+  #   age_cmd: "age"
+  #   # envelope_version：保留给配置对称和文档生成；agent 解密时会同时接受 v1/v2 加密 envelope。
+  #   envelope_version: 2
+  #   # key_id：可选备注当前 agent identity 批次；agent 不依赖该字段选择私钥。
+  #   key_id: "x162-age-2026q3"
+  #   # identity_files：age 私钥文件列表；轮换时可同时放新旧 identity。
+  #   identity_files:
+  #     - "/etc/pullknock/age-current.key"
+  #     - "/etc/pullknock/age-next.key"
 
+# firewall：本机防火墙后端配置。
 firewall:
+  # backend：防火墙后端；支持 firewalld 或 nftables。
   backend: "firewalld"
+  # firewall_cmd：firewall-cmd 可执行文件路径。
   firewall_cmd: "/usr/bin/firewall-cmd"
+  # default_zone：grant 未指定 zone 时使用的默认 firewalld zone。
   default_zone: "public"
+  # nft_cmd：nftables 后端使用的 nft 可执行文件路径。
+  nft_cmd: "/usr/sbin/nft"
+  # nft_family：nftables family，通常使用 inet 同时覆盖 IPv4/IPv6。
+  nft_family: "inet"
+  # nft_table：nftables 表名；agent 会把动态 set 放在这里。
+  nft_table: "pullknock"
+  # nft_set_prefix：nftables 动态 set 名称前缀，最终 set 类似 pullknock_tcp_22_ipv4。
+  nft_set_prefix: "pullknock"
+  # nft_setup_sets：是否由 agent 尝试创建 table/set；生产环境也可以设 false，改由运维预创建。
+  nft_setup_sets: true
 
-users:
-  jonhy:
+# groups：可选用户组策略；用户可从组继承 grant 白名单、来源 CIDR 和 timeout 上限。
+groups:
+  # ops：运维用户组示例。
+  ops:
+    # enabled：是否启用该组；false 时该组不参与授权。
     enabled: true
-    display_name: "Jonhy"
+    # display_name：可读显示名。
+    display_name: "Operations"
+    # allowed_grants：该组成员允许请求的 grant_id 列表。
     allowed_grants:
       - "x162-ssh"
-    max_timeout_seconds: 60
-    not_before: "2026-07-01T00:00:00+00:00"
-    expires_at: "2027-07-01T00:00:00+00:00"
+    # max_timeout_seconds：该组成员单次授权允许的最大开放秒数。
+    max_timeout_seconds: 45
+    # allow_source_cidrs：该组允许放行的来源 IP 网段。
     allow_source_cidrs:
       - "0.0.0.0/0"
       - "::/0"
 
-  ops-temp:
+# users：本机授权用户表；公钥、有效期、来源限制和可用 grant 都放在这里。
+users:
+  # jonhy：principal 名；必须和 CLI defaults.principal 一致。
+  jonhy:
+    # enabled：是否启用该用户；false 时所有请求都会被拒绝。
     enabled: true
-    display_name: "Temporary ops user"
+    # display_name：可读显示名，仅用于配置可读性和审计辅助。
+    display_name: "Jonhy"
+    # groups：用户所属组；会继承组上的 allowed_grants、CIDR 和 timeout 上限。
+    groups:
+      - "ops"
+    # keys：该用户允许用于 SSHSIG 验签的 key 列表；每把 key 都有独立 id、开关、有效期和审计记录。
+    keys:
+      # id：key 标识，会写入审计日志，建议包含用户、设备和轮换批次。
+      - id: "jonhy-yubikey-2026"
+        # enabled：是否启用该 key。
+        enabled: true
+        # public_key：OpenSSH .pub 文件内容，不需要在前面再写 principal。
+        public_key: "sk-ssh-ed25519@openssh.com AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyReplaceMe jonhy-yubikey"
+        # expires_at：key 过期时间，适合临时设备或轮换。
+        expires_at: "2027-07-01T00:00:00+00:00"
+        # comment：可读备注。
+        comment: "Jonhy YubiKey 5C"
+    # allowed_grants：该用户允许请求的 grant_id 列表。
     allowed_grants:
       - "x162-ssh"
+    # max_timeout_seconds：该用户单次授权允许的最大开放秒数。
+    max_timeout_seconds: 60
+    # not_before：用户最早生效时间；ISO 8601 时间，也可写 Unix 秒。
+    not_before: "2026-07-01T00:00:00+00:00"
+    # expires_at：用户过期时间；临时账号建议必须设置。
+    expires_at: "2027-07-01T00:00:00+00:00"
+    # allow_source_cidrs：该用户允许放行的来源 IP 网段；和 grant 网段同时生效。
+    allow_source_cidrs:
+      - "0.0.0.0/0"
+      - "::/0"
+
+  # ops-temp：临时运维用户示例。
+  ops-temp:
+    # enabled：是否启用该用户。
+    enabled: true
+    # display_name：可读显示名。
+    display_name: "Temporary ops user"
+    # keys：该用户的 OpenSSH 公钥列表，临时用户建议设置 key 和用户双重过期时间。
+    keys:
+      - id: "ops-temp-laptop"
+        public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyReplaceMe ops-temp"
+        expires_at: "2026-08-01T00:00:00+00:00"
+        comment: "Temporary ops laptop"
+    # allowed_grants：临时用户只允许使用这里列出的 grant。
+    allowed_grants:
+      - "x162-ssh"
+    # max_timeout_seconds：临时用户开放时间更短。
     max_timeout_seconds: 30
+    # expires_at：临时用户账号到期时间。
     expires_at: "2026-08-01T00:00:00+00:00"
+    # allow_source_cidrs：临时用户只能从指定公网出口网段发起授权。
     allow_source_cidrs:
       - "203.0.113.0/24"
 
+# grants：本机可开放的权限项；真正的端口、协议和 zone 只从这里读取。
 grants:
+  # ssh-base：基础 grant 示例；可被具体 grant 通过 inherits 继承。
+  ssh-base:
+    # description：基础 grant 描述。
+    description: "Base SSH grant"
+    # allowed_groups：允许使用该 grant 的用户组列表。
+    allowed_groups:
+      - "ops"
+    # ports：基础 grant 开放端口。
+    ports:
+      # protocol：端口协议。
+      - protocol: "tcp"
+        # port：端口号。
+        port: 22
+    # max_timeout_seconds：基础 grant 最大开放秒数。
+    max_timeout_seconds: 60
+    # zone：firewalld zone；不填时使用 firewall.default_zone。
+    zone: "public"
+    # allow_source_cidrs：基础 grant 允许来源 CIDR。
+    allow_source_cidrs:
+      - "0.0.0.0/0"
+      - "::/0"
+
+  # x162-ssh：grant_id；CLI targets.<name>.grant_id 必须引用这个值。
   x162-ssh:
+    # inherits：继承其他 grant 的端口、组、principal、CIDR、zone 和 timeout 上限。
+    inherits:
+      - "ssh-base"
+    # description：grant 描述，用于配置可读性和审计辅助。
     description: "Temporary SSH access for x162"
+    # allowed_principals：允许使用该 grant 的用户 principal 列表。
     allowed_principals:
       - "jonhy"
       - "ops-temp"
+    # ports：该 grant 会开放的本机端口列表；远端 payload 不能指定端口。
     ports:
+      # protocol：端口协议；当前支持 tcp/udp。
       - protocol: "tcp"
+        # port：端口号；SSH 通常是 22。
         port: 22
+    # max_timeout_seconds：该 grant 单次开放的最大秒数。
     max_timeout_seconds: 60
+    # zone：firewalld zone；不填时使用 firewall.default_zone。
     zone: "public"
+    # allow_source_cidrs：该 grant 允许放行的来源 IP 网段。
     allow_source_cidrs:
       - "0.0.0.0/0"
       - "::/0"

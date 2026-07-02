@@ -6,6 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/pullknock-agent --config /etc/pullknock/agent.yaml
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=5
 User=root

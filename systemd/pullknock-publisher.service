@@ -1,0 +1,22 @@
+[Unit]
+Description=PullKnock Publisher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pullknock-publisher --config /etc/pullknock/publisher.yaml
+Restart=always
+RestartSec=5
+User=pullknock
+Group=pullknock
+EnvironmentFile=-/etc/pullknock/publisher.env
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/pullknock-publisher
+
+[Install]
+WantedBy=multi-user.target

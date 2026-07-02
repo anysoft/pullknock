@@ -1,24 +1,150 @@
+# CLI 默认参数：这些值会用于 pullknock open 命令生成 signed command。
 defaults:
+  # principal：当前客户端代表的用户身份；必须和 agent.yaml users 里的用户名一致。
   principal: "jonhy"
+  # signature_namespace：OpenSSH SSHSIG 命名空间；agent 端必须配置成同一个值。
   signature_namespace: "pullknock-v1"
+  # private_key：用于签名 payload 的 OpenSSH 私钥；推荐 YubiKey/FIDO2 security key。
   private_key: "~/.ssh/pullknock_ed25519_sk"
+  # command_ttl_seconds：signed command 自身有效期；过期后 agent 会拒绝。
   command_ttl_seconds: 60
+  # requested_timeout_seconds：默认请求开放防火墙的秒数；最终还会被 agent grant/user 上限截断。
   requested_timeout_seconds: 60
+  # age：可选 envelope 加密配置；启用后 CLI 会把 signed envelope 用 age 加密后再发布。
+  # age:
+  #   # enabled：是否启用 age 加密；false 等价于不配置 age。
+  #   enabled: true
+  #   # age_cmd：age 可执行文件路径或命令名。
+  #   age_cmd: "age"
+  #   # envelope_version：加密 envelope 外层版本；2 是默认值，带 key_id 和算法字段；1 用于发布 envelope v1 加密格式。
+  #   envelope_version: 2
+  #   # key_id：v2 加密 key 标识，用于运维识别当前 recipient 集合或轮换批次；CLI v2 必填。
+  #   key_id: "x162-age-2026q3"
+  #   # recipients：agent 端 age 公钥 recipient 列表；轮换时可同时放新旧 recipient。
+  #   recipients:
+  #     - "age1exampleonlyreplacewithagentrecipient000000000000000000000000000000"
+  #   # recipient_files：可选；每行一个 age recipient 的文件，适合批量服务器或轮换阶段。
+  #   recipient_files: []
 
+# publishers：定义 CLI 把 signed envelope 发布到哪里。
 publishers:
+  # local：本地文件 publisher，适合本机联调或单机测试。
   local:
+    # type：publisher 类型；file 表示直接写本地文件。
     type: "file"
+    # path：file publisher 写入的 envelope JSON 路径；agent 的 control_url 可指向同一个路径。
     path: "/tmp/pullknock-command.json"
 
-  x162-http:
+  # publisher-service：HTTP PUT publisher，适合对接 pullknock-publisher 或对象存储。
+  publisher-service:
+    # type：publisher 类型；http_put 表示用 HTTP PUT 上传 envelope JSON。
     type: "http_put"
-    url: "https://example.com/hidden/path/pullknock-command.json"
+    # url：上传目标 URL；支持环境变量展开，也通常是 agent 轮询读取的固定 URL。
+    url: "https://publisher.example.com/pullknock-command.json"
+    # timeout_seconds：HTTP PUT 请求超时时间。
     timeout_seconds: 10
+    # headers：HTTP PUT 请求附加 header；支持环境变量展开。
     headers:
+      # Authorization：pullknock-publisher 写入鉴权 token；环境变量避免把密钥写死进配置。
       Authorization: "Bearer ${PULLKNOCK_UPLOAD_TOKEN}"
 
+  # webdav-box：WebDAV publisher，适合支持 WebDAV 的网盘、对象存储网关或自建服务。
+  webdav-box:
+    # type：publisher 类型；webdav_put 表示使用 WebDAV/HTTP PUT 上传 envelope JSON。
+    type: "webdav_put"
+    # url：WebDAV 文件完整 URL；支持环境变量展开，agent 可通过同一个 HTTPS URL 读取。
+    url: "https://webdav.example.com/pullknock/pullknock-command.json"
+    # username：WebDAV Basic Auth 用户名；匿名 WebDAV 可删除 username/password。
+    username: "${PULLKNOCK_WEBDAV_USER}"
+    # password：WebDAV Basic Auth 密码或应用专用密码。
+    password: "${PULLKNOCK_WEBDAV_PASSWORD}"
+    # timeout_seconds：WebDAV PUT 请求超时时间。
+    timeout_seconds: 10
+    # create_collections：是否尝试用 MKCOL 创建父目录；部分 WebDAV 服务不支持可设为 false。
+    create_collections: false
+    # headers：额外 HTTP header；通常不需要。
+    headers: {}
+
+  # anonymous-ftp：匿名 FTP publisher，适合只提供 FTP 写入/读取的免费资源。
+  anonymous-ftp:
+    # type：publisher 类型；ftp_upload 表示通过 FTP 上传 envelope JSON。
+    type: "ftp_upload"
+    # url：FTP 文件完整路径；支持环境变量展开，agent control_url 也可以配置成同一个 ftp:// URL。
+    url: "ftp://ftp.example.com/pub/pullknock-command.json"
+    # username：FTP 用户名；匿名 FTP 通常是 anonymous。
+    username: "anonymous"
+    # password：FTP 密码；匿名 FTP 通常是邮箱或 anonymous@。
+    password: "anonymous@"
+    # timeout_seconds：FTP 连接和上传超时时间。
+    timeout_seconds: 10
+    # passive：是否使用被动模式；多数 NAT/公网环境建议 true。
+    passive: true
+    # create_dirs：上传前是否尝试创建 URL 中的父目录。
+    create_dirs: true
+
+  # ftps-box：显式加密的数据通道 FTP publisher；配置同 ftp_upload。
+  ftps-box:
+    # type：publisher 类型；ftps_upload 使用 FTP over TLS。
+    type: "ftps_upload"
+    # url：FTPS 文件完整路径；支持环境变量展开，默认端口 990。
+    url: "ftps://ftp.example.com/pullknock-command.json"
+    # username：FTPS 用户名。
+    username: "${PULLKNOCK_FTPS_USER}"
+    # password：FTPS 密码。
+    password: "${PULLKNOCK_FTPS_PASSWORD}"
+    # timeout_seconds：FTPS 连接和上传超时时间。
+    timeout_seconds: 10
+
+  # ipfs-node：IPFS/Kubo HTTP API publisher；agent 通常通过固定 gateway URL 或 IPNS URL 拉取。
+  ipfs-node:
+    # type：publisher 类型；ipfs_http 表示调用 Kubo HTTP API 的 /api/v0/add。
+    type: "ipfs_http"
+    # api_url：Kubo HTTP API 地址；默认常见值是 http://127.0.0.1:5001。
+    api_url: "http://127.0.0.1:5001"
+    # filename：上传到 IPFS multipart 表单里的文件名。
+    filename: "pullknock-command.json"
+    # pin：是否要求本地节点 pin 住 CID。
+    pin: true
+    # cid_version：IPFS CID 版本；建议使用 1。
+    cid_version: 1
+    # ipns_key：可选；配置后会把最新 CID 发布到该 IPNS key。
+    ipns_key: "pullknock"
+    # timeout_seconds：IPFS API 请求超时时间。
+    timeout_seconds: 30
+
+  # s3-object：S3 兼容对象存储 publisher；适合 MinIO、Cloudflare R2、Wasabi 等。
+  s3-object:
+    # type：publisher 类型；s3_put 表示用 AWS Signature V4 PUT 上传 envelope JSON。
+    type: "s3_put"
+    # endpoint_url：S3 兼容 API endpoint。
+    endpoint_url: "https://s3.example.com"
+    # region：SigV4 region；MinIO 常用 us-east-1，R2 可用 auto。
+    region: "us-east-1"
+    # bucket：对象存储 bucket 名。
+    bucket: "pullknock"
+    # key：对象 key；agent 可通过对应公开/签名 HTTPS URL 拉取。
+    key: "commands/x162.json"
+    # access_key_id：访问密钥 ID；支持环境变量展开。
+    access_key_id: "${PULLKNOCK_S3_ACCESS_KEY_ID}"
+    # secret_access_key：访问密钥 secret；支持环境变量展开。
+    secret_access_key: "${PULLKNOCK_S3_SECRET_ACCESS_KEY}"
+    # session_token：可选 STS token；没有就留空。
+    session_token: ""
+    # path_style：true 表示 endpoint/bucket/key；false 表示 bucket.endpoint/key。
+    path_style: true
+    # timeout_seconds：S3 PUT 请求超时时间。
+    timeout_seconds: 30
+    # headers：额外对象 header，例如 Cache-Control。
+    headers:
+      Cache-Control: "no-store"
+
+# targets：定义用户可通过 CLI 打开的目标别名。
 targets:
+  # x162：CLI 命令里使用的目标名，例如 pullknock open x162。
   x162:
+    # target：agent 服务器 ID；必须等于 agent.yaml server.id。
     target: "x162-43-32-23"
+    # grant_id：请求使用的授权项；必须存在于 agent.yaml grants。
     grant_id: "x162-ssh"
+    # publisher：使用哪个 publisher 发布 envelope；必须引用上方 publishers 中的名字。
     publisher: "local"

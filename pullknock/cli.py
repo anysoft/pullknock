@@ -11,8 +11,9 @@ import click
 import requests
 
 from .config import load_cli_config
+from .crypto import age_encrypt
 from .errors import PullKnockError
-from .protocol import build_envelope, build_payload, canonical_json
+from .protocol import build_encrypted_envelope, build_envelope, build_envelope_v2, build_payload, canonical_json
 from .publisher import envelope_json_bytes, publish_envelope
 from .signing import sshsig_sign
 
@@ -81,10 +82,31 @@ def open_command(
             ssh_keygen=config.defaults.ssh_keygen,
         )
         envelope = build_envelope(payload_bytes, signature_bytes, kid=config.defaults.principal, created_at=now)
+        if config.defaults.age is not None:
+            ciphertext = age_encrypt(envelope_json_bytes(envelope), config.defaults.age)
+            if config.defaults.age.envelope_version == 1:
+                envelope = build_encrypted_envelope(ciphertext, kid=config.defaults.principal, created_at=now)
+            else:
+                assert config.defaults.age.key_id is not None
+                envelope = build_envelope_v2(
+                    ciphertext,
+                    kid=config.defaults.principal,
+                    encryption_key_id=config.defaults.age.key_id,
+                    created_at=now,
+                )
         if dry_run:
             click.echo(envelope_json_bytes(envelope).decode("utf-8"), nl=False)
             return
-        location = publish_envelope(envelope, publisher)
+        location = publish_envelope(
+            envelope,
+            publisher,
+            context={
+                "target": target.target,
+                "grant_id": target.grant_id,
+                "command_id": payload["command_id"],
+                "principal": config.defaults.principal,
+            },
+        )
         click.echo(json.dumps({"published": location, "target": target_name, "source_ip": resolved_source_ip}))
     except PullKnockError as exc:
         raise click.ClickException(str(exc)) from exc

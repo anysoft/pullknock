@@ -1,4 +1,0 @@
-# Replace the public key with your real OpenSSH public key.
-# For YubiKey/FIDO2 keys:
-# jonhy ssh-ed25519-sk AAAAC3NzaC1lZDI1NTE5AAAAI... jonhy-pullknock
-jonhy ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyReplaceMe jonhy-pullknock

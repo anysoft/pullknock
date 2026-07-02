@@ -1,0 +1,31 @@
+# server：pullknock-publisher HTTP 服务监听配置。
+server:
+  # host：监听地址；生产建议 127.0.0.1，前面用 Nginx/Caddy 提供 HTTPS。
+  host: "127.0.0.1"
+  # port：监听端口；0 表示让系统随机分配，生产一般写固定端口。
+  port: 8080
+  # path：CLI PUT 和 agent GET 共用的 envelope 路径。
+  path: "/pullknock-command.json"
+  # health_path：健康检查路径。
+  health_path: "/healthz"
+  # max_body_bytes：允许上传的最大 envelope 大小，防止异常大请求。
+  max_body_bytes: 65536
+
+# storage：publisher 本地落盘配置。
+storage:
+  # mode：latest 保存单个最新 envelope；queue 支持 /commands/<target>/<command_id>.json 防止并发覆盖。
+  mode: "latest"
+  # envelope_file：最新 envelope JSON 保存路径；写入时会原子替换。
+  envelope_file: "/var/lib/pullknock-publisher/command.json"
+  # queue_dir：queue 模式 envelope 保存目录；默认是 envelope_file 同级 commands 目录。
+  queue_dir: "/var/lib/pullknock-publisher/commands"
+
+# auth：publisher 自身 HTTP 鉴权配置；只保护布告栏写入/读取，不参与 agent 授权判断。
+auth:
+  # write_bearer_tokens：允许 PUT 写入 envelope 的 bearer token 列表；支持环境变量展开。
+  write_bearer_tokens:
+    - "${PULLKNOCK_UPLOAD_TOKEN}"
+  # require_auth_for_read：GET 读取 envelope 是否也要求 bearer token。
+  require_auth_for_read: false
+  # read_bearer_tokens：允许 GET 读取的 bearer token 列表；require_auth_for_read 为 true 时使用。
+  read_bearer_tokens: []

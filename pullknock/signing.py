@@ -37,13 +37,16 @@ def sshsig_verify(
     payload_bytes: bytes,
     signature_bytes: bytes,
     *,
-    allowed_signers_file: str,
     principal: str,
+    signer_file_content: str | bytes,
     namespace: str = "pullknock-v1",
     ssh_keygen: str = "ssh-keygen",
 ) -> None:
-    allowed_signers_file = expand_path(allowed_signers_file)
     with tempfile.TemporaryDirectory(prefix="pullknock-verify-") as temp_dir:
+        signer_file_path = Path(temp_dir) / "signers"
+        if isinstance(signer_file_content, str):
+            signer_file_content = signer_file_content.encode("utf-8")
+        signer_file_path.write_bytes(signer_file_content)
         signature_path = Path(temp_dir) / "signature.sig"
         signature_path.write_bytes(signature_bytes)
         args = [
@@ -51,7 +54,7 @@ def sshsig_verify(
             "-Y",
             "verify",
             "-f",
-            allowed_signers_file,
+            str(signer_file_path),
             "-I",
             principal,
             "-n",

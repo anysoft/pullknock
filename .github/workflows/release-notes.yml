@@ -1,0 +1,29 @@
+name: Release notes
+
+on:
+  pull_request:
+    paths:
+      - CHANGELOG.md
+      - pyproject.toml
+      - pullknock/__init__.py
+      - scripts/check_release_notes.py
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check release notes format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check release notes
+        run: python scripts/check_release_notes.py

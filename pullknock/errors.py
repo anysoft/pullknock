@@ -29,6 +29,10 @@ class FetchError(PullKnockError):
     """Fetching an envelope failed."""
 
 
+class EncryptionError(PullKnockError):
+    """Envelope encryption or decryption failed."""
+
+
 class PermissionDenied(PullKnockError):
     """A signed command is not permitted by local policy."""
 

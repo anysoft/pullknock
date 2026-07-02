@@ -14,7 +14,7 @@ LOGGER_NAME = "pullknock.audit"
 
 def configure_logging(*, log_file: str | None = None, level: str = "INFO") -> None:
     numeric_level = getattr(logging, level.upper(), logging.INFO)
-    kwargs: dict[str, Any] = {"level": numeric_level, "format": "%(message)s"}
+    kwargs: dict[str, Any] = {"level": numeric_level, "format": "%(message)s", "force": True}
     if log_file:
         path = Path(log_file)
         path.parent.mkdir(parents=True, exist_ok=True)
