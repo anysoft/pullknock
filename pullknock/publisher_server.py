@@ -262,10 +262,10 @@ def _queue_root(config: PublisherServiceConfig) -> Path:
 def _queue_item_file(config: PublisherServiceConfig, target: str, command_id: str) -> Path:
     _validate_queue_id(target, "target")
     _validate_queue_id(command_id, "command_id")
-    root = _queue_root(config).resolve()
-    candidate = (root / target / f"{command_id}.json").resolve()
+    queue_root = _queue_root(config).resolve()
+    candidate = (queue_root / target / f"{command_id}.json").resolve()
     try:
-        candidate.relative_to(root)
+        candidate.relative_to(queue_root)
     except ValueError as exc:
         raise ProtocolError("invalid_queue_path") from exc
     return candidate
