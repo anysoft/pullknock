@@ -32,8 +32,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install package
-        run: python -m pip install -e .
+      - name: Install package and release tools
+        run: python -m pip install -e ".[release]"
 
       - name: Compile Python files
         run: python -m compileall pullknock tests scripts

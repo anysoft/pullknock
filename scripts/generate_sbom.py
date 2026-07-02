@@ -6,10 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import tomllib
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 
 def main() -> int:
